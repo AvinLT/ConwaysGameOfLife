@@ -1,7 +1,14 @@
-import pygame, sys
+import pygame
+import sys
 from pygame.locals import *
 
 # import random
+
+# GAME RULES
+# 1)Any live cell with fewer than two live neighbours dies, as if by underpopulation.
+# 2)Any live cell with two or three live neighbours lives on to the next generation.
+# 3)Any live cell with more than three live neighbours dies, as if by overpopulation.
+# 4)Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
 
 clock = pygame.time.Clock()  # initialize clock
 pygame.init()  # initialize pygame
@@ -12,9 +19,14 @@ screen = pygame.display.set_mode(WINDOW_SIZE, 0, 32)  # initialize window
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GREY = (15, 15, 20)
+GREY = (30, 30, 40)
 CONST_SIZE = 18
 CONST_GRID_OFFSET = [65, 25]
+
+# GAME VAR
+UNDER_THRESH = 2
+OVER_THRESH = 3
+REPR_THRESH = 3
 
 
 # load map from GameMap.txt
@@ -67,9 +79,29 @@ class Square:
         self.x = x
         self.y = y
         self.width = 12
+        self.loc = [int((x - CONST_GRID_OFFSET[0]) / CONST_SIZE), int((y - CONST_GRID_OFFSET[1]) / CONST_SIZE)]
         self.alive = False
         self.rect = pygame.Rect(x, y, CONST_SIZE, CONST_SIZE)
         self.touch_cursor = False
+        self.neighbors = 0
+
+    def tot_neighbors(self, grid_squares):
+        tot = 0
+        for x in (-1, -1, 0, 1, 1, 1, 0, -1):
+            for y in (0, 1, 1, 1, 0, -1, -1, -1):
+                if grid_squares[self.loc[1] + y][self.loc[0] + x].alive:
+                    tot += 1
+        self.neighbors = tot
+
+    def die_method(self):
+        if self.neighbors < UNDER_THRESH:
+            self.alive = False
+        elif self.neighbors > OVER_THRESH:
+            self.alive = False
+
+    def alive_method(self):
+        if self.neighbors == REPR_THRESH:
+            self.alive = True
 
 
 text_output = load_text_file("GameMap")
