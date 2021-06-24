@@ -28,11 +28,12 @@ clock = pygame.time.Clock()  # initialize clock
 pygame.init()  # initialize pygame
 
 WINDOW_SIZE = (770, 600)  # window size
-display = pygame.Surface((770, 600))  # what we display images on.
+display = pygame.Surface((770, 600))  # what we display images on
 screen = pygame.display.set_mode(WINDOW_SIZE, 0, 32)  # initialize window
 
 
 # load map from GameMap.txt
+# splits the grid of 1's and 0's into into 2D list
 def load_text_file(path):
     f = open(path + '.txt', 'r')
     data = f.read()
@@ -44,12 +45,14 @@ def load_text_file(path):
     return game_map
 
 
+# makes a grid of Squares. If 1 occurs, make the Square alive, else it is not alive
+# marks outer Squares, so that a Square won't 'scan' neighbors outside of grid
 def make_grid(text_map):
     len_y = len(text_map)
     len_x = len(text_map[0])
     edge = False
-    map = []
     alive = False
+    map = []
 
     for y in range(len_y):
         temp = []
@@ -71,6 +74,8 @@ def make_grid(text_map):
     return map
 
 
+# draws grid of squares
+# if cursor is on a square, light up the square, but it is not 'alive'
 def draw_grid(grid_squares):
     for row in grid_squares:
         for square in row:
@@ -80,9 +85,11 @@ def draw_grid(grid_squares):
                 pygame.draw.rect(display, BLACK, square.rect)
             if square.touch_cursor:
                 pygame.draw.rect(display, WHITE, square.rect)
-            pygame.draw.rect(display, GREY, square.rect, 1)
+            pygame.draw.rect(display, GREY, square.rect, 1)  # black border around each square
 
 
+# marks thr square which the cursor is on
+# make square 'alive' if click is True
 def cursor_on_square(grid_squares, cursor_loc, click):
     for row in grid_squares:
         for square in row:
@@ -94,11 +101,14 @@ def cursor_on_square(grid_squares, cursor_loc, click):
                 square.touch_cursor = False
 
 
+# x,y are the pixel cords on the window
+# loc is the cord on the grid
+# neighbors is the number of 'alive' squares around the self square
+# grid_edge indicates whether the square is on the edge of grid
 class Square:
     def __init__(self, x, y, edge_square, alive):
         self.x = x
         self.y = y
-        self.width = 12
         self.loc = [int((x - CONST_GRID_OFFSET[0]) / CONST_SIZE), int((y - CONST_GRID_OFFSET[1]) / CONST_SIZE)]
         self.alive = alive
         self.rect = pygame.Rect(x, y, CONST_SIZE, CONST_SIZE)
@@ -106,6 +116,7 @@ class Square:
         self.neighbors = 0
         self.grid_edge = edge_square
 
+    # counts the number of 'alive' squares around self square
     def tot_neighbors(self, grid_squares):
         tot = 0
         for y, x in ((-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)):
@@ -114,6 +125,7 @@ class Square:
                     tot += 1
         self.neighbors = tot
 
+    # implements the rules of the game. Can be changed by changing THRESHOLDS
     def die_alive_method(self):
         if not self.grid_edge:
             if self.neighbors == REPR_THRESH:
@@ -146,9 +158,12 @@ while True:  # Main game loop
             if event.button == 1:  # left click
                 click_state = False
 
+    # updates the # of neighbors around square
     for row_of_squares in grid:
         for single_square in row_of_squares:
             single_square.tot_neighbors(grid)
+
+    # 'kills' or 'spawn' squares depending of the number of neighbors
     for row_of_squares in grid:
         for single_square in row_of_squares:
             single_square.die_alive_method()
