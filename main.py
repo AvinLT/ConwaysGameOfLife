@@ -82,6 +82,9 @@ def make_grid(text_map):
     return map
 
 
+# does not use text file
+# the grid rows and cols can be changed easier
+# all square will start off dead
 def make_custom_grid():
     len_y = 150  # ENTER CUSTOM NUMBER, WITHOUT TEXT MAP
     len_x = 150  # ENTER CUSTOM NUMBER, WITHOUT TEXT MAP
@@ -133,12 +136,18 @@ def cursor_on_square(grid_squares, cursor_loc, click, buttons_rect):
                 square.touch_cursor = False
 
 
+# if pause/play button clicked, the game stops executing the die_alive_method.
 def pause_button_click(button_rect, cursor_loc, click):
     if pygame.Rect.collidepoint(button_rect, cursor_loc) and click:
         global CONTINUE
         CONTINUE = not CONTINUE
 
 
+# zoom in = 1
+# zoom out = -1
+# nothing zoom = 0
+# changes the size of squares for zoom effect
+# center square is the focal point of zoom in/out
 def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, cursor_loc, click):
     if pygame.Rect.collidepoint(in_button_rect, cursor_loc) and click:
         zoom = 1
@@ -153,6 +162,7 @@ def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, curso
     if zoom != 0:
         for y in range(len_y):
             for x in range(len_x):
+                # squares that are further out from center square move more than squares closer to center
                 grid_squares[y][x].rect.y += -(center[1] - y + 1) * zoom
                 grid_squares[y][x].rect.x += -(center[0] - x + 1) * zoom
                 grid_squares[y][x].rect.width += 1 * zoom
