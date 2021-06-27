@@ -13,8 +13,8 @@ UNDER_THRESH = 2
 OVER_THRESH = 4
 REPR_THRESH = 3
 
-CONST_SIZE = 10  # square size
-CONST_GRID_OFFSET = [30, 25]  # move entire grid by
+CONST_SIZE = 12  # square size
+CONST_GRID_OFFSET = [0, 0]  # move entire grid by
 CONST_EDGE_IGNORE = 1  # make outer squares on grid unusable, to enclose chain reaction
 
 # RGB color codes
@@ -145,7 +145,7 @@ def pause_button_click(button_rect, cursor_loc, click):
 
 # zoom in = 1
 # zoom out = -1
-# nothing zoom = 0
+# nothing, zoom = 0
 # changes the size of squares for zoom effect
 # center square is the focal point of zoom in/out
 def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, cursor_loc, click):
@@ -158,17 +158,45 @@ def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, curso
 
     len_y = len(grid_squares)
     len_x = len(grid_squares[0])
-    center = [int(len_y/2), int(len_x/2)]
-    if zoom != 0:
+    center = [int(len_y / 2), int(len_x / 2)]
+    min_size = int(WINDOW_SIZE[0] / len_x)
+    max_size = 100
+    if zoom == 1 and max_size > grid_squares[0][0].rect.width:
         for y in range(len_y):
             for x in range(len_x):
                 # squares that are further out from center square move more than squares closer to center
-                grid_squares[y][x].rect.y += -(center[1] - y + 1) * zoom
-                grid_squares[y][x].rect.x += -(center[0] - x + 1) * zoom
+                grid_squares[y][x].rect.y += -(center[0] - y + 1) * zoom
+                grid_squares[y][x].rect.x += -(center[1] - x + 1) * zoom
                 grid_squares[y][x].rect.width += 1 * zoom
                 grid_squares[y][x].rect.height += 1 * zoom
 
+    if zoom == -1 and grid_squares[0][0].rect.width > min_size:
+        for y in range(len_y):
+            for x in range(len_x):
+                # squares that are further out from center square move more than squares closer to center
+                grid_squares[y][x].rect.y += -(center[0] - y + 1) * zoom
+                grid_squares[y][x].rect.x += -(center[1] - x + 1) * zoom
+                grid_squares[y][x].rect.width += 1 * zoom
+                grid_squares[y][x].rect.height += 1 * zoom
+
+    print(grid_squares[0][0].rect.width)
     return grid_squares
+
+
+def off_set_grid(grid_squares):
+    len_x = len(grid_squares[0])
+
+    global CONST_SIZE
+    CONST_SIZE = int(WINDOW_SIZE[0] / len_x)
+
+    off_x = -int((CONST_SIZE * len(grid_squares[0]))/2)
+    off_y = 0
+
+    if CONST_SIZE * len(grid_squares) > WINDOW_SIZE[1]:
+        off_y = int((WINDOW_SIZE[1] - CONST_SIZE * len(grid_squares))/2)
+
+    global CONST_GRID_OFFSET
+    CONST_GRID_OFFSET = [off_x, off_y]
 
 
 # x,y are the pixel cords on the window
@@ -207,8 +235,10 @@ class Square:
 
 
 text_output = load_text_file("GameMap")
+# off_set_grid(text_output)
 grid = make_grid(text_output)
 # grid = make_custom_grid()
+
 click_state = False
 
 while True:  # Main game loop
