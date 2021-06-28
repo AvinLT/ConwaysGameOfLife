@@ -37,6 +37,12 @@ CONTINUE = False
 play_pause_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2), 550, 32, 32)
 zoom_in_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 + 45), 550, 32, 32)
 zoom_out_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 + 90), 550, 32, 32)
+
+right_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 45), 550, 32, 32)
+left_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 90), 550, 32, 32)
+up_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 135), 550, 32, 32)
+down_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 180), 550, 32, 32)
+
 buttons_area_rect = pygame.Rect(2, WINDOW_SIZE[1] - 57, WINDOW_SIZE[0] - 4, 58)
 
 
@@ -185,18 +191,58 @@ def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, curso
 
 def off_set_grid(grid_squares):
     len_x = len(grid_squares[0])
+    len_y = len(grid_squares)
 
     global CONST_SIZE
     CONST_SIZE = int(WINDOW_SIZE[0] / len_x)
 
-    off_x = -int((CONST_SIZE * len(grid_squares[0]))/2)
-    off_y = 0
-
-    if CONST_SIZE * len(grid_squares) > WINDOW_SIZE[1]:
-        off_y = int((WINDOW_SIZE[1] - CONST_SIZE * len(grid_squares))/2)
+    off_x = int((WINDOW_SIZE[0] - len_x * CONST_SIZE) / 2)
+    off_y = int((WINDOW_SIZE[1] - len_y * CONST_SIZE) / 2)
 
     global CONST_GRID_OFFSET
     CONST_GRID_OFFSET = [off_x, off_y]
+
+
+def move(grid_squares, right_button_rect, left_button_rect, up_button_rect, down_button_rect, cursor_loc, click):
+    if click:
+        if pygame.Rect.collidepoint(right_button_rect, cursor_loc):
+            direction = [-2, 0]
+        elif pygame.Rect.collidepoint(left_button_rect, cursor_loc):
+            direction = [2, 0]
+        elif pygame.Rect.collidepoint(up_button_rect, cursor_loc):
+            direction = [0, 2]
+        elif pygame.Rect.collidepoint(down_button_rect, cursor_loc):
+            direction = [0, -2]
+        else:
+            direction = [0, 0]
+
+        len_x = len(grid_squares[0])
+        len_y = len(grid_squares)
+
+        if direction[0] != 0:
+            if direction[0] < 0:
+                if grid_squares[0][0].rect.x > CONST_GRID_OFFSET[0]:
+                    for row in grid_squares:
+                        for square in row:
+                            square.rect.x += direction[0]
+            else:
+                if grid_squares[0][len_x - 1].rect.x < len_x * CONST_SIZE + CONST_GRID_OFFSET[0]:
+                    for row in grid_squares:
+                        for square in row:
+                            square.rect.x += direction[0]
+        else:
+            if direction[1] < 0:
+                if grid_squares[0][0].rect.y > CONST_GRID_OFFSET[1]:
+                    for row in grid_squares:
+                        for square in row:
+                            square.rect.y += direction[1]
+            else:
+                if grid_squares[len_y - 1][0].rect.y < len_y * CONST_SIZE + CONST_GRID_OFFSET[1]:
+                    for row in grid_squares:
+                        for square in row:
+                            square.rect.y += direction[1]
+
+    return grid_squares
 
 
 # x,y are the pixel cords on the window
@@ -235,7 +281,7 @@ class Square:
 
 
 text_output = load_text_file("GameMap")
-# off_set_grid(text_output)
+off_set_grid(text_output)
 grid = make_grid(text_output)
 # grid = make_custom_grid()
 
@@ -274,6 +320,7 @@ while True:  # Main game loop
 
     pause_button_click(play_pause_rect, loc, single_click)
     grid = zoom_pause_button_click(grid, zoom_in_rect, zoom_out_rect, loc, click_state)
+    grid = move(grid, right_rect, left_rect, up_rect, down_rect, loc, click_state)
     cursor_on_square(grid, loc, click_state, buttons_area_rect)
     draw_grid(grid)
 
@@ -281,6 +328,11 @@ while True:  # Main game loop
 
     display.blit(plus_button, [zoom_in_rect.x, zoom_in_rect.y])
     display.blit(minus_button, [zoom_out_rect.x, zoom_out_rect.y])
+
+    display.blit(right_button, [right_rect.x, right_rect.y])
+    display.blit(left_button, [left_rect.x, left_rect.y])
+    display.blit(up_button, [up_rect.x, up_rect.y])
+    display.blit(down_button, [down_rect.x, down_rect.y])
 
     if CONTINUE:
         display.blit(pause_button, [int(WINDOW_SIZE[0] / 2 - 35 / 2), 550])
