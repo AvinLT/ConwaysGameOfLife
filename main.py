@@ -1,6 +1,7 @@
 import sys
 from pygame.locals import *
 from ImportImages import *
+import random
 
 # GAME RULES
 # 1)Any live cell with fewer than two live neighbours dies, as if by underpopulation. UNDER_THRESH = 2
@@ -10,7 +11,7 @@ from ImportImages import *
 
 # GAME VARIABLES
 UNDER_THRESH = 2
-OVER_THRESH = 4
+OVER_THRESH = 3
 REPR_THRESH = 3
 
 CONST_SIZE = 12  # square size
@@ -43,7 +44,10 @@ left_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 90), 550, 32, 32)
 up_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 135), 550, 32, 32)
 down_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 180), 550, 32, 32)
 
-buttons_area_rect = pygame.Rect(2, WINDOW_SIZE[1] - 57, WINDOW_SIZE[0] - 4, 58)
+clear_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 300), 550, 32, 32)
+shuffle_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 345), 550, 32, 32)
+
+buttons_area_rect = pygame.Rect(0, WINDOW_SIZE[1] - 57, WINDOW_SIZE[0], 62)
 
 
 # load map from GameMap.txt
@@ -68,6 +72,15 @@ def make_grid(text_map):
     alive = False
     map = []
 
+    global CONST_SIZE
+    CONST_SIZE = int(WINDOW_SIZE[0] / len_x)
+
+    off_x = int((WINDOW_SIZE[0] - len_x * CONST_SIZE) / 2)
+    off_y = int((WINDOW_SIZE[1] - len_y * CONST_SIZE) / 2)
+
+    global CONST_GRID_OFFSET
+    CONST_GRID_OFFSET = [off_x, off_y]
+
     for y in range(len_y):
         temp = []
         x = 0
@@ -91,11 +104,18 @@ def make_grid(text_map):
 # does not use text file
 # the grid rows and cols can be changed easier
 # all square will start off dead
-def make_custom_grid():
-    len_y = 150  # ENTER CUSTOM NUMBER, WITHOUT TEXT MAP
-    len_x = 150  # ENTER CUSTOM NUMBER, WITHOUT TEXT MAP
+def make_custom_grid(len_x, len_y):
     edge = False
     map = []
+
+    global CONST_SIZE
+    CONST_SIZE = int(WINDOW_SIZE[0] / len_x)
+
+    off_x = int((WINDOW_SIZE[0] - len_x * CONST_SIZE) / 2)
+    off_y = int((WINDOW_SIZE[1] - len_y * CONST_SIZE) / 2)
+
+    global CONST_GRID_OFFSET
+    CONST_GRID_OFFSET = [off_x, off_y]
 
     for y in range(len_y):
         temp = []
@@ -112,6 +132,20 @@ def make_custom_grid():
         map.append(temp)
         y += 1
     return map
+
+
+def off_set_grid(grid_squares):
+    len_x = len(grid_squares[0])
+    len_y = len(grid_squares)
+
+    global CONST_SIZE
+    CONST_SIZE = int(WINDOW_SIZE[0] / len_x)
+
+    off_x = int((WINDOW_SIZE[0] - len_x * CONST_SIZE) / 2)
+    off_y = int((WINDOW_SIZE[1] - len_y * CONST_SIZE) / 2)
+
+    global CONST_GRID_OFFSET
+    CONST_GRID_OFFSET = [off_x, off_y]
 
 
 # draws grid of squares
@@ -176,7 +210,15 @@ def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, curso
                 grid_squares[y][x].rect.width += 1 * zoom
                 grid_squares[y][x].rect.height += 1 * zoom
 
-    if zoom == -1 and grid_squares[0][0].rect.width > min_size:
+    in_screen = False
+    bigger_rect = 24
+    screen_rect = pygame.Rect(-bigger_rect, -bigger_rect, WINDOW_SIZE[0] + bigger_rect, WINDOW_SIZE[1] + bigger_rect)
+    if grid_squares[0][len_x - 1].rect.right > screen_rect.right and grid_squares[0][0].rect.left < screen_rect.left \
+            and grid_squares[len_y - 1][0].rect.bottom > screen_rect.bottom and grid_squares[0][
+            0].rect.top < screen_rect.top:
+        in_screen = True
+
+    if zoom == -1 and grid_squares[0][0].rect.width > min_size and in_screen:
         for y in range(len_y):
             for x in range(len_x):
                 # squares that are further out from center square move more than squares closer to center
@@ -189,30 +231,19 @@ def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, curso
     return grid_squares
 
 
-def off_set_grid(grid_squares):
-    len_x = len(grid_squares[0])
-    len_y = len(grid_squares)
-
-    global CONST_SIZE
-    CONST_SIZE = int(WINDOW_SIZE[0] / len_x)
-
-    off_x = int((WINDOW_SIZE[0] - len_x * CONST_SIZE) / 2)
-    off_y = int((WINDOW_SIZE[1] - len_y * CONST_SIZE) / 2)
-
-    global CONST_GRID_OFFSET
-    CONST_GRID_OFFSET = [off_x, off_y]
-
-
 def move(grid_squares, right_button_rect, left_button_rect, up_button_rect, down_button_rect, cursor_loc, click):
+    screen_rect = pygame.Rect(0, 0, WINDOW_SIZE[0], WINDOW_SIZE[1])
+    speed = 4
+
     if click:
         if pygame.Rect.collidepoint(right_button_rect, cursor_loc):
-            direction = [-2, 0]
+            direction = [-speed, 0]
         elif pygame.Rect.collidepoint(left_button_rect, cursor_loc):
-            direction = [2, 0]
+            direction = [speed, 0]
         elif pygame.Rect.collidepoint(up_button_rect, cursor_loc):
-            direction = [0, 2]
+            direction = [0, speed]
         elif pygame.Rect.collidepoint(down_button_rect, cursor_loc):
-            direction = [0, -2]
+            direction = [0, -speed]
         else:
             direction = [0, 0]
 
@@ -221,27 +252,55 @@ def move(grid_squares, right_button_rect, left_button_rect, up_button_rect, down
 
         if direction[0] != 0:
             if direction[0] < 0:
-                if grid_squares[0][0].rect.x > CONST_GRID_OFFSET[0]:
+                if grid_squares[0][len_x - 1].rect.right > screen_rect.right:
                     for row in grid_squares:
                         for square in row:
                             square.rect.x += direction[0]
             else:
-                if grid_squares[0][len_x - 1].rect.x < len_x * CONST_SIZE + CONST_GRID_OFFSET[0]:
+                if grid_squares[0][0].rect.left < screen_rect.left:
                     for row in grid_squares:
                         for square in row:
                             square.rect.x += direction[0]
         else:
             if direction[1] < 0:
-                if grid_squares[0][0].rect.y > CONST_GRID_OFFSET[1]:
+                if grid_squares[len_y - 1][0].rect.bottom > screen_rect.bottom:
                     for row in grid_squares:
                         for square in row:
                             square.rect.y += direction[1]
             else:
-                if grid_squares[len_y - 1][0].rect.y < len_y * CONST_SIZE + CONST_GRID_OFFSET[1]:
+                if grid_squares[0][0].rect.top < screen_rect.top:
                     for row in grid_squares:
                         for square in row:
                             square.rect.y += direction[1]
 
+    return grid_squares
+
+
+def clear(grid_squares, button_rect, cursor_loc, click):
+    if pygame.Rect.collidepoint(button_rect, cursor_loc) and click:
+        for row in grid_squares:
+            for square in row:
+                square.alive = False
+    return grid_squares
+
+
+def shuffle(grid_squares, button_rect, cursor_loc, click):
+    len_y = len(grid_squares)
+    len_x = len(grid_squares[0])
+
+    if pygame.Rect.collidepoint(button_rect, cursor_loc) and click:
+        for y in range(len_y):
+            for x in range(len_x):
+                edge = False
+                if y < CONST_EDGE_IGNORE or y > len_y - CONST_EDGE_IGNORE - 1:
+                    edge = True
+                if x < CONST_EDGE_IGNORE or x > len_x - CONST_EDGE_IGNORE - 1:
+                    edge = True
+                if not edge:
+                    if random.randint(0, 9) < 5:
+                        grid_squares[y][x].alive = True
+                    else:
+                        grid_squares[y][x].alive = False
     return grid_squares
 
 
@@ -281,9 +340,9 @@ class Square:
 
 
 text_output = load_text_file("GameMap")
-off_set_grid(text_output)
-grid = make_grid(text_output)
-# grid = make_custom_grid()
+# off_set_grid(text_output)
+# grid = make_grid(text_output)
+grid = make_custom_grid(75, 75)
 
 click_state = False
 
@@ -321,7 +380,10 @@ while True:  # Main game loop
     pause_button_click(play_pause_rect, loc, single_click)
     grid = zoom_pause_button_click(grid, zoom_in_rect, zoom_out_rect, loc, click_state)
     grid = move(grid, right_rect, left_rect, up_rect, down_rect, loc, click_state)
-    cursor_on_square(grid, loc, click_state, buttons_area_rect)
+    grid = clear(grid, clear_rect, loc, single_click)
+    grid = shuffle(grid, shuffle_rect, loc, single_click)
+
+    cursor_on_square(grid, loc, single_click, buttons_area_rect)
     draw_grid(grid)
 
     pygame.draw.rect(display, BLACK, buttons_area_rect)
@@ -334,6 +396,9 @@ while True:  # Main game loop
     display.blit(up_button, [up_rect.x, up_rect.y])
     display.blit(down_button, [down_rect.x, down_rect.y])
 
+    display.blit(clear_button, [clear_rect.x, clear_rect.y])
+    display.blit(shuffle_button, [shuffle_rect.x, shuffle_rect.y])
+
     if CONTINUE:
         display.blit(pause_button, [int(WINDOW_SIZE[0] / 2 - 35 / 2), 550])
     else:
@@ -344,4 +409,4 @@ while True:  # Main game loop
     mainDisplay = pygame.transform.scale(display, WINDOW_SIZE)
     screen.blit(mainDisplay, (0, 0))
 
-    clock.tick(40)  # set frame rate
+    clock.tick(50)  # set frame rate
