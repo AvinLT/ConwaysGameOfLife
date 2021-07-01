@@ -142,7 +142,9 @@ def draw_grid(grid_squares):
     for row in grid_squares:
         for square in row:
             if square.alive:
-                pygame.draw.rect(display, WHITE, square.rect)
+                # makes the square that has been alive for longer, more blue. the max square.time is 200
+                # so darkest color a square can be is (55, 55, 255)
+                pygame.draw.rect(display, (255 - square.time, 255 - square.time, 255), square.rect)
             else:
                 pygame.draw.rect(display, BLACK, square.rect)
             if square.touch_cursor:
@@ -224,7 +226,6 @@ def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, curso
 
 def move(grid_squares, right_button_rect, left_button_rect, up_button_rect, down_button_rect, cursor_loc, click):
     screen_rect = pygame.Rect(0, 0, WINDOW_SIZE[0], WINDOW_SIZE[1])
-    speed = 4
 
     if click:
         if pygame.Rect.collidepoint(right_button_rect, cursor_loc):
@@ -297,21 +298,19 @@ def shuffle(grid_squares, button_rect, cursor_loc, click):
     return grid_squares
 
 
-# x,y are the pixel cords on the window
-# loc is the cord on the grid
-# neighbors is the number of 'alive' squares around the self square
-# grid_edge indicates whether the square is on the edge of grid
+# each square on grid is made of Square class
 class Square:
     def __init__(self, x, y, edge_square, alive):
-        self.x = x
-        self.y = y
+        self.x = x  # x the pixel cords on the window
+        self.y = y  # y the pixel cords on the window
         self.loc = [int((x - CONST_GRID_OFFSET[0]) / CONST_SIZE), int((y - CONST_GRID_OFFSET[1]) / CONST_SIZE)]
-        self.alive = alive
+        self.alive = alive  # is the number of 'alive' squares around the self square
         self.rect = pygame.Rect(x, y, CONST_SIZE, CONST_SIZE)
         self.touch_cursor = False
         self.neighbors = 0
-        self.grid_edge = edge_square
-        self.color = []
+        self.grid_edge = edge_square  # indicates whether the square is on the edge of grid
+        self.time = 0  # is the number of frames the square has been alive without dying. Used for color and max is 200
+        self.prev_alive = False  # tells you if square was alive previous frame
 
     # counts the number of 'alive' squares around self square
     def tot_neighbors(self, grid_squares):
@@ -322,9 +321,15 @@ class Square:
                     tot += 1
         self.neighbors = tot
 
-    # implements the rules of the game. Can be changed by changing THRESHOLDS
+    # checks if square is on the edge of grid, applies rules of game, increments self.time up to a maximum
     def die_alive_method(self):
         if not self.grid_edge:
+            if self.alive:
+                self.prev_alive = True
+            else:
+                self.prev_alive = False
+
+            # implements the rules of the game. Can be changed by changing THRESHOLDS
             if self.neighbors == REPR_THRESH:
                 self.alive = True
             if self.neighbors < UNDER_THRESH:
@@ -332,20 +337,21 @@ class Square:
             elif self.neighbors > OVER_THRESH:
                 self.alive = False
 
+            # self.time used for color of square, so limit is 200 to not make square too dark blue
+            if self.prev_alive and self.alive:
+                if self.time < 200:
+                    self.time += 1
+            else:
+                self.time = 0
+
 
 text_output = load_text_file("GameMap")
-# off_set_grid(text_output)
 # grid = make_grid(text_output)
 grid = make_custom_grid(75, 75)
 
 click_state = False
 
-test = pygame.time.Clock()
-
 while True:  # Main game loop
-
-    test.tick()
-    print(test)
 
     display.fill(BLACK)  # makes screen black
 
@@ -375,6 +381,9 @@ while True:  # Main game loop
         for row_of_squares in grid:
             for single_square in row_of_squares:
                 single_square.die_alive_method()
+
+    speed = 1
+    speed = speed + 1 % 3
 
     pause_button_click(play_pause_rect, loc, single_click)
     grid = zoom_pause_button_click(grid, zoom_in_rect, zoom_out_rect, loc, click_state)
@@ -408,4 +417,4 @@ while True:  # Main game loop
     mainDisplay = pygame.transform.scale(display, WINDOW_SIZE)
     screen.blit(mainDisplay, (0, 0))
 
-    clock.tick(60)  # set frame rate
+    clock.tick(30)  # set frame rate
