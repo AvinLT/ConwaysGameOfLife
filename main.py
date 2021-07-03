@@ -1,7 +1,10 @@
 import sys
-from pygame.locals import *
-from ImportImages import *
+
+import pygame.examples.scroll
+
+from draw import *
 import random
+import json
 
 # GAME RULES
 # 1)Any live cell with fewer than two live neighbours dies, as if by underpopulation. UNDER_THRESH = 2
@@ -17,6 +20,9 @@ REPR_THRESH = 3
 CONST_SIZE = 12  # square size
 CONST_GRID_OFFSET = [0, 0]  # move entire grid by
 CONST_EDGE_IGNORE = 1  # make outer squares on grid unusable, to enclose chain reaction
+CONTINUE = False  # False means that game is paused
+DROPDOWN = False
+SCROLL = 0
 
 # RGB color codes
 WHITE = (255, 255, 255)
@@ -28,28 +34,6 @@ GREEN = (127, 255, 212)
 
 clock = pygame.time.Clock()  # initialize clock
 pygame.init()  # initialize pygame
-
-WINDOW_SIZE = (770, 600)  # window size
-display = pygame.Surface((770, 600))  # what we display images on
-screen = pygame.display.set_mode(WINDOW_SIZE, 0, 32)  # initialize window
-
-CONTINUE = False
-
-# rectangles for all the buttons
-play_pause_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2), 550, 32, 32)
-zoom_in_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 + 45), 550, 32, 32)
-zoom_out_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 + 90), 550, 32, 32)
-
-right_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 45), 550, 32, 32)
-left_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 90), 550, 32, 32)
-up_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 135), 550, 32, 32)
-down_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 180), 550, 32, 32)
-
-clear_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 300), 550, 32, 32)
-shuffle_rect = pygame.Rect(int(WINDOW_SIZE[0] / 2 - 35 / 2 - 345), 550, 32, 32)
-
-# black bar at bottom, used for button organising buttons
-buttons_area_rect = pygame.Rect(0, WINDOW_SIZE[1] - 57, WINDOW_SIZE[0], 62)
 
 
 # load map from GameMap.txt
@@ -178,7 +162,7 @@ def pause_button_click(button_rect, cursor_loc, click):
 # nothing, zoom = 0
 # changes the size of squares for zoom effect
 # center square is the focal point of zoom in/out
-def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, cursor_loc, click):
+def zoom_button_click(grid_squares, in_button_rect, out_button_rect, cursor_loc, click):
     if pygame.Rect.collidepoint(in_button_rect, cursor_loc) and click:
         zoom = 1
     elif pygame.Rect.collidepoint(out_button_rect, cursor_loc) and click:
@@ -207,8 +191,8 @@ def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, curso
     screen_rect = pygame.Rect(-bigger_rect, -bigger_rect, WINDOW_SIZE[0] + bigger_rect, WINDOW_SIZE[1] + bigger_rect)
     # uses big rectangle, size of the window, used too see if being zoomed out of screen
 
-    if grid_squares[0][len_x - 1].rect.right > screen_rect.right and grid_squares[0][0].rect.left < screen_rect.left \
-            and grid_squares[len_y - 1][0].rect.bottom > screen_rect.bottom and grid_squares[0][
+    if grid_squares[0][len_x - 1].rect.right > screen_rect.right and grid_squares[0][0].rect.left < screen_rect.left\
+        and grid_squares[len_y - 1][0].rect.bottom > screen_rect.bottom and grid_squares[0][
             0].rect.top < screen_rect.top:
         in_screen = True
     # when zooming out
@@ -224,8 +208,10 @@ def zoom_pause_button_click(grid_squares, in_button_rect, out_button_rect, curso
     return grid_squares
 
 
-def move(grid_squares, right_button_rect, left_button_rect, up_button_rect, down_button_rect, cursor_loc, click):
+def move_button_click(grid_squares, right_button_rect, left_button_rect, up_button_rect, down_button_rect, cursor_loc,
+                      click):
     screen_rect = pygame.Rect(0, 0, WINDOW_SIZE[0], WINDOW_SIZE[1])
+    speed = 3
 
     if click:
         if pygame.Rect.collidepoint(right_button_rect, cursor_loc):
@@ -298,6 +284,50 @@ def shuffle(grid_squares, button_rect, cursor_loc, click):
     return grid_squares
 
 
+def import_pattern(json_path):
+    with open(json_path, 'r') as fh:
+        s = fh.read()
+        json_patterns = json.loads(s)
+    return json_patterns
+
+
+def preset_button_click(preset_button_rect, cursor_loc, click):
+    if pygame.Rect.collidepoint(preset_button_rect, cursor_loc) and click:
+        global DROPDOWN
+        DROPDOWN = not DROPDOWN
+
+
+def draw_dropdown(show_dropdown, cursor_loc, click, preset, grid_squares):
+    font_style = pygame.font.SysFont('cambria', 15)
+
+    if show_dropdown:
+        pygame.draw.rect(display, (0, 0, 0), (580, 40, 155, 540))
+        for i in range(0, 18):
+            pygame.draw.rect(display, (255, 255, 255), (580, 40 + 30 * i, 155, 30), 2)
+            text = preset[i + SCROLL]["title"]
+            label = font_style.render(text, True, (255, 255, 255))
+            display.blit(label, (585, 45 + 30 * i))
+
+            if pygame.Rect.collidepoint(pygame.Rect(580, 40 + 30 * i, 155, 30), cursor_loc) and click:
+                pattern = preset[i + SCROLL]["life"]
+                len_x = len(grid_squares[0])
+                len_y = len(grid_squares)
+                if len(pattern) > len_y or len(pattern[0]) > len_x:
+                    print("preset pattern is too big")
+                else:
+                    for row in grid_squares:
+                        for square in row:
+                            square.alive = False
+                    pattern_loc = [int((len_x - len(pattern[0])) / 2), int((len_y - len(pattern)) / 2)]
+
+                    for y in range(len(pattern)):
+                        for x in range(len(pattern[0])):
+                            if pattern[y][x] == 1:
+                                grid_squares[pattern_loc[1] + y][pattern_loc[0] + x].alive = True
+
+    return grid
+
+
 # each square on grid is made of Square class
 class Square:
     def __init__(self, x, y, edge_square, alive):
@@ -345,9 +375,10 @@ class Square:
                 self.time = 0
 
 
+patterns = import_pattern("patterns/patterns.json")
 text_output = load_text_file("GameMap")
 # grid = make_grid(text_output)
-grid = make_custom_grid(75, 75)
+grid = make_custom_grid(100, 100)
 
 click_state = False
 
@@ -360,16 +391,23 @@ while True:  # Main game loop
     single_click = False
 
     for event in pygame.event.get():  # event loop
-        if event.type == QUIT:  # checks if window is closed
+        if event.type == pygame.QUIT:  # checks if window is closed
             pygame.quit()  # stops pygame
             sys.exit()  # stops script
-        if event.type == MOUSEBUTTONDOWN:
+        if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:  # left click
                 click_state = True
                 single_click = True
-        if event.type == MOUSEBUTTONUP:
+        if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:  # left click
                 click_state = False
+        if event.type == pygame.MOUSEWHEEL:
+            SCROLL += - event.y
+            if SCROLL < 0:
+                SCROLL = 0
+            elif SCROLL > len(patterns) - 18:
+                SCROLL = len(patterns) - 18
+
 
     # updates the # of neighbors around square
     for row_of_squares in grid:
@@ -382,38 +420,21 @@ while True:  # Main game loop
             for single_square in row_of_squares:
                 single_square.die_alive_method()
 
-    speed = 1
-    speed = speed + 1 % 3
-
     pause_button_click(play_pause_rect, loc, single_click)
-    grid = zoom_pause_button_click(grid, zoom_in_rect, zoom_out_rect, loc, click_state)
-    grid = move(grid, right_rect, left_rect, up_rect, down_rect, loc, click_state)
-    grid = clear(grid, clear_rect, loc, single_click)
-    grid = shuffle(grid, shuffle_rect, loc, single_click)
+    zoom_button_click(grid, zoom_in_rect, zoom_out_rect, loc, click_state)
+    move_button_click(grid, right_rect, left_rect, up_rect, down_rect, loc, click_state)
+    clear(grid, clear_rect, loc, single_click)
+    shuffle(grid, shuffle_rect, loc, single_click)
+    preset_button_click(preset_rect, loc, single_click)
 
     cursor_on_square(grid, loc, single_click, buttons_area_rect)
     draw_grid(grid)
+    draw_tools(CONTINUE)
+    draw_dropdown(DROPDOWN, loc, single_click, patterns, grid)
 
-    pygame.draw.rect(display, BLACK, buttons_area_rect)
-
-    display.blit(plus_button, [zoom_in_rect.x, zoom_in_rect.y])
-    display.blit(minus_button, [zoom_out_rect.x, zoom_out_rect.y])
-
-    display.blit(right_button, [right_rect.x, right_rect.y])
-    display.blit(left_button, [left_rect.x, left_rect.y])
-    display.blit(up_button, [up_rect.x, up_rect.y])
-    display.blit(down_button, [down_rect.x, down_rect.y])
-
-    display.blit(clear_button, [clear_rect.x, clear_rect.y])
-    display.blit(shuffle_button, [shuffle_rect.x, shuffle_rect.y])
-
-    if CONTINUE:
-        display.blit(pause_button, [int(WINDOW_SIZE[0] / 2 - 35 / 2), 550])
-    else:
-        display.blit(play_button, [int(WINDOW_SIZE[0] / 2 - 35 / 2), 550])
     # end here
 
-    pygame.display.update()  # update display
+    pygame.display.update()  # update displayik
     mainDisplay = pygame.transform.scale(display, WINDOW_SIZE)
     screen.blit(mainDisplay, (0, 0))
 
