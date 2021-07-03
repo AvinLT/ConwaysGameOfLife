@@ -1,5 +1,6 @@
 import pygame
 
+
 # image sprites
 play_button = pygame.image.load("Sprites\play.png")
 pause_button = pygame.image.load("Sprites\pause.png")
@@ -13,3 +14,5 @@ down_button = pygame.image.load(r"Sprites\down.png")
 
 clear_button = pygame.image.load(r"Sprites\clear.png")
 shuffle_button = pygame.image.load(r"Sprites\shuffle.png")
+
+preset_button = pygame.image.load(r"Sprites\preset.png")
