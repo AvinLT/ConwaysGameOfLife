@@ -1,7 +1,5 @@
 import pygame
 
-
-# image res
 play_button = pygame.image.load("../res/play.png")
 pause_button = pygame.image.load("../res/pause.png")
 plus_button = pygame.image.load(r"../res/plus.png")

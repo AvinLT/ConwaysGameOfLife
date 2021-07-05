@@ -4,10 +4,17 @@ import random
 import json
 
 # GAME RULES
-# 1)Any live cell with fewer than two live neighbours dies, as if by underpopulation. UNDER_THRESH = 2
-# 2)Any live cell with two or three live neighbours lives on to the next generation.
-# 3)Any live cell with more than three live neighbours dies, as if by overpopulation. OVER_THRESH = 3
-# 4)Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction. REPR_THRESH = 3
+
+# 1)Any live cell with fewer than two live neighbours dies, as if by underpopulation.
+# Default is UNDER_THRESH = 2
+
+# 2)Any live cells that does not die due to underpopulation or overpopulation remains alive.
+
+# 3)Any live cell with more than three live neighbours dies, as if by overpopulation.
+# Default is OVER_THRESH = 3
+
+# 4)Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+# Default is REPR_THRESH = 3
 
 # GAME VARIABLES
 UNDER_THRESH = 2
@@ -20,7 +27,7 @@ CONST_EDGE_IGNORE = 1  # make outer squares on grid unusable, to enclose chain r
 CONTINUE = False  # False means that game is paused
 PRESET_DROPDOWN = False
 SETTING_DROPDOWN = False
-SCROLL = 0
+SCROLL = 0  # used for preset dropdown scrolling. +ive value will move the text upwards
 
 # RGB color codes
 WHITE = (255, 255, 255)
@@ -49,6 +56,13 @@ def load_text_file(path):
     for row in data:
         game_map.append(row.split(' '))
     return game_map
+
+
+def import_pattern(json_path):
+    with open(json_path, 'r') as fh:
+        s = fh.read()
+        json_patterns = json.loads(s)
+    return json_patterns
 
 
 # makes a grid of Squares. If 1 occurs, make the Square alive, else it is not alive
@@ -90,10 +104,8 @@ def make_grid(text_map):
 
 
 # does not use text file
-# the grid rows and cols can be changed easier
-# all square will start off dead
-# makes a grid of Squares. If 1 occurs, make the Square alive, else it is not alive
-# marks outer Squares, so that a Square won't 'scan' neighbors outside of grid
+# the grid rows and cols can be changed easier with parameters, len_x and len_y
+# all square will start off not alive
 def make_custom_grid(len_x, len_y):
     edge = False
     map = []
@@ -115,6 +127,7 @@ def make_custom_grid(len_x, len_y):
                 edge = True
             if x < CONST_EDGE_IGNORE or x > len_x - CONST_EDGE_IGNORE - 1:
                 edge = True
+            # marks outer Squares, so that a Square won't 'scan' neighbors outside of grid
             temp.append(
                 Square(x * CONST_SIZE + CONST_GRID_OFFSET[0], y * CONST_SIZE + CONST_GRID_OFFSET[1], edge, False))
             x += 1
@@ -140,7 +153,7 @@ def draw_grid(grid_squares):
             pygame.draw.rect(display, GREY, square.rect, 1)  # black border around each square
 
 
-# marks thr square which the cursor is on
+# marks the square which the cursor is on
 # make square 'alive' if click is True
 def cursor_on_square(grid_squares, cursor_loc, click, buttons_rect):
     for row in grid_squares:
@@ -154,19 +167,13 @@ def cursor_on_square(grid_squares, cursor_loc, click, buttons_rect):
                 square.touch_cursor = False
 
 
-# if pause/play button clicked, the game stops executing the die_alive_method.
-def pause_button_click(button_rect, cursor_loc, click):
-    if pygame.Rect.collidepoint(button_rect, cursor_loc) and click:
-        global CONTINUE
-        CONTINUE = not CONTINUE
-
-
-# zoom in = 1
-# zoom out = -1
-# nothing, zoom = 0
 # changes the size of squares for zoom effect
 # center square is the focal point of zoom in/out
+# if pause/play button clicked, the game stops executing the die_alive_method.
 def zoom_button_click(grid_squares, in_button_rect, out_button_rect, cursor_loc, click):
+    # zoom in = 1
+    # zoom out = -1
+    # nothing, zoom = 0
     if pygame.Rect.collidepoint(in_button_rect, cursor_loc) and click:
         zoom = 1
     elif pygame.Rect.collidepoint(out_button_rect, cursor_loc) and click:
@@ -193,12 +200,13 @@ def zoom_button_click(grid_squares, in_button_rect, out_button_rect, cursor_loc,
     in_screen = False
     bigger_rect = 24
     screen_rect = pygame.Rect(-bigger_rect, -bigger_rect, WINDOW_SIZE[0] + bigger_rect, WINDOW_SIZE[1] + bigger_rect)
-    # uses big rectangle, size of the window, used too see if being zoomed out of screen
-
+    # uses screen_rect, size of the window, used too see if being zoomed out of screen
+    # if any side of grid moves past this rect, then stop zooming out.
     if grid_squares[0][len_x - 1].rect.right > screen_rect.right and grid_squares[0][0].rect.left < screen_rect.left \
             and grid_squares[len_y - 1][0].rect.bottom > screen_rect.bottom and grid_squares[0][0].rect.top < \
             screen_rect.top:
         in_screen = True
+
     # when zooming out
     if zoom == -1 and grid_squares[0][0].rect.width > min_size and in_screen:
         for y in range(len_y):
@@ -216,6 +224,8 @@ def move_button_click(grid_squares, right_button_rect, left_button_rect, up_butt
                       click):
     screen_rect = pygame.Rect(0, 0, WINDOW_SIZE[0], WINDOW_SIZE[1])
     speed = 3
+    len_x = len(grid_squares[0])
+    len_y = len(grid_squares)
 
     if click:
         if pygame.Rect.collidepoint(right_button_rect, cursor_loc):
@@ -229,26 +239,29 @@ def move_button_click(grid_squares, right_button_rect, left_button_rect, up_butt
         else:
             direction = [0, 0]
 
-        len_x = len(grid_squares[0])
-        len_y = len(grid_squares)
-
+        # movement in x dir
         if direction[0] != 0:
+            # moves squares left, making the screen look like its moving right
             if direction[0] < 0:
                 if grid_squares[0][len_x - 1].rect.right > screen_rect.right:
                     for row in grid_squares:
                         for square in row:
                             square.rect.x += direction[0]
+            # moves squares right, making the screen look like its moving left
             else:
                 if grid_squares[0][0].rect.left < screen_rect.left:
                     for row in grid_squares:
                         for square in row:
                             square.rect.x += direction[0]
+        # movement in y dir
         else:
+            # moves squares left, making the screen look like its moving right
             if direction[1] < 0:
                 if grid_squares[len_y - 1][0].rect.bottom > screen_rect.bottom:
                     for row in grid_squares:
                         for square in row:
                             square.rect.y += direction[1]
+            # moves squares right, making the screen look like its moving left
             else:
                 if grid_squares[0][0].rect.top < screen_rect.top:
                     for row in grid_squares:
@@ -258,19 +271,17 @@ def move_button_click(grid_squares, right_button_rect, left_button_rect, up_butt
     return grid_squares
 
 
-def import_pattern(json_path):
-    with open(json_path, 'r') as fh:
-        s = fh.read()
-        json_patterns = json.loads(s)
-    return json_patterns
-
-
 # clears all squares
 # makes all squares either alive of dead, using the random module
-def other_buttons(grid_squares, cursor_loc, click, rect_shuffle, rect_clear, rect_preset, rect_settings):
+def other_buttons(grid_squares, cursor_loc, click, rect_pause, rect_shuffle, rect_clear, rect_preset, rect_settings):
     len_y = len(grid_squares)
     len_x = len(grid_squares[0])
 
+    global PRESET_DROPDOWN
+    global SETTING_DROPDOWN
+    global CONTINUE
+
+    # shuffle feature
     if pygame.Rect.collidepoint(rect_shuffle, cursor_loc) and click:
         for y in range(len_y):
             for x in range(len_x):
@@ -285,14 +296,18 @@ def other_buttons(grid_squares, cursor_loc, click, rect_shuffle, rect_clear, rec
                     else:
                         grid_squares[y][x].alive = False
 
+    # starts and pause feature
+    if pygame.Rect.collidepoint(rect_pause, cursor_loc) and click:
+        CONTINUE = not CONTINUE
+
+    # clear feature
     if pygame.Rect.collidepoint(rect_clear, cursor_loc) and click:
         for row in grid_squares:
             for square in row:
                 square.alive = False
 
-    global PRESET_DROPDOWN
-    global SETTING_DROPDOWN
-
+    # preset feature
+    # 
     if pygame.Rect.collidepoint(rect_preset, cursor_loc) and click:
         PRESET_DROPDOWN = not PRESET_DROPDOWN
         SETTING_DROPDOWN = False
@@ -304,7 +319,7 @@ def other_buttons(grid_squares, cursor_loc, click, rect_shuffle, rect_clear, rec
     return grid_squares
 
 
-def draw_dropdown(preset_dropdown, setting_dropdown, cursor_loc, click, preset, grid_squares):
+def draw_dropdown(preset_dropdown, setting_dropdown, cursor_loc, click, preset_json, grid_squares):
     preset_loc = [570, 50]
     setting_loc = [570, 410]
 
@@ -314,67 +329,51 @@ def draw_dropdown(preset_dropdown, setting_dropdown, cursor_loc, click, preset, 
 
     if preset_dropdown:
         pygame.draw.rect(display, BLACK, (preset_loc[0], preset_loc[1], 155, 540))
+        
+        # 18 boxes in preset dropdown
         for i in range(0, 18):
             pygame.draw.rect(display, WHITE, (preset_loc[0], preset_loc[1] + 30 * i, 155, 30), 2)
-            text = preset[i + SCROLL]["title"]
+            text = preset_json[i + SCROLL]["title"]
             label = font_style.render(text, True, WHITE)
             display.blit(label, (preset_loc[0] + 5, preset_loc[1] + 5 + 30 * i))
 
+            # every loop is each box on screen
             if pygame.Rect.collidepoint(pygame.Rect(preset_loc[0], preset_loc[1] + 30 * i, 155, 30), cursor_loc) \
                     and click:
-                pattern = preset[i + SCROLL]["life"]
+                pattern = preset_json[i + SCROLL]["life"]  # the pattern chosen by user
                 len_x = len(grid_squares[0])
                 len_y = len(grid_squares)
+
                 if len(pattern) > len_y or len(pattern[0]) > len_x:
-                    print("preset pattern is too big")
+                    print("preset_json pattern is too big")
                 else:
+                    # clears grid
                     for row in grid_squares:
                         for square in row:
                             square.alive = False
+
+                    # location of where pattern should be placed
                     pattern_loc = [int((len_x - len(pattern[0])) / 2), int((len_y - len(pattern)) / 2)]
 
+                    # draws pattern onto grid
                     for y in range(len(pattern)):
                         for x in range(len(pattern[0])):
                             if pattern[y][x] == 1:
                                 grid_squares[pattern_loc[1] + y][pattern_loc[0] + x].alive = True
+
     elif setting_dropdown:
         pygame.draw.rect(display, BLACK, (setting_loc[0], setting_loc[1], 155, 150))
+        
+        # 3 boxes in settings dropdown
         for i in range(3):
-            pygame.draw.rect(display, WHITE, (setting_loc[0], setting_loc[1] + 60 * i, 155, 60), 2)
-
-            pygame.draw.rect(display, WHITE, (setting_loc[0] + 110, setting_loc[1] + 60 * i, 45, 60), 2)
-
-            pygame.draw.rect(display, WHITE, (setting_loc[0] + 110, setting_loc[1] + 60 * i, 45, 15), 2)
-            pygame.draw.rect(display, WHITE, (setting_loc[0] + 110, setting_loc[1] + 45 + 60 * i, 45, 15), 2)
-
-            pygame.draw.polygon(screen, WHITE, [[703, 416 + 60 * i], [701, 419 + 60 * i], [705, 419 + 60 * i]])
-            pygame.draw.polygon(screen, WHITE, [[703, 464 + 60 * i], [701, 461 + 60 * i], [705, 461 + 60 * i]])
-
-            under_num = font_style_big.render(str(UNDER_THRESH), True, WHITE)
-            under_text1 = font_style_med.render("Under", True, WHITE)
-            under_text2 = font_style_med.render("Limit", True, WHITE)
-            over_num = font_style_big.render(str(OVER_THRESH), True, WHITE)
-            over_text1 = font_style_med.render("Over", True, WHITE)
-            over_text2 = font_style_med.render("Limit", True, WHITE)
-            repr_num = font_style_big.render(str(REPR_THRESH), True, WHITE)
-            repr_text1 = font_style_med.render("Spawn", True, WHITE)
-            repr_text2 = font_style_med.render("Rate", True, WHITE)
-
-            display.blit(under_num, (697, 425))
-            display.blit(over_num, (697, 485))
-            display.blit(repr_num, (697, 545))
-
-            display.blit(under_text1, (setting_loc[0] + 30, 418))
-            display.blit(under_text2, (setting_loc[0] + 33, 440))
-
-            display.blit(over_text1, (setting_loc[0] + 33, 478))
-            display.blit(over_text2, (setting_loc[0] + 33, 500))
-
-            display.blit(repr_text1, (setting_loc[0] + 27, 538))
-            display.blit(repr_text2, (setting_loc[0] + 36, 560))
+            # draws all the boxes, texts and triangles for the settings dropdown
+            draw_shapes_texts_setting(i, setting_loc, font_style_med, font_style_big, UNDER_THRESH, OVER_THRESH,
+                                      REPR_THRESH)
 
             if pygame.Rect.collidepoint(pygame.Rect((setting_loc[0] + 110, setting_loc[1] + 60 * i, 45, 15)),
                                         cursor_loc) and click:
+                
+                # 8 is the limit because there are only 8 squares around a single square
                 if i == 0:
                     UNDER_THRESH += 1
                     if UNDER_THRESH > 8:
@@ -389,6 +388,7 @@ def draw_dropdown(preset_dropdown, setting_dropdown, cursor_loc, click, preset, 
                     REPR_THRESH += 1
                     if REPR_THRESH > OVER_THRESH:
                         REPR_THRESH -= 1
+                        
             elif pygame.Rect.collidepoint(pygame.Rect((setting_loc[0] + 110, setting_loc[1] + 45 + 60 * i, 45, 15)),
                                           cursor_loc) and click:
                 if i == 0:
@@ -405,13 +405,15 @@ def draw_dropdown(preset_dropdown, setting_dropdown, cursor_loc, click, preset, 
                     REPR_THRESH -= 1
                     if REPR_THRESH < UNDER_THRESH:
                         REPR_THRESH += 1
-
+            
+            # REPR_THRESH has to be in between UNDER_THRESH and OVER_THRESH inclusively,
+            # otherwise squares will die before new ones get created.
             if REPR_THRESH > OVER_THRESH:
                 REPR_THRESH = OVER_THRESH
             if REPR_THRESH < UNDER_THRESH:
                 REPR_THRESH = UNDER_THRESH
 
-    return grid
+    return grid_squares
 
 
 # each square on grid is made of Square class
@@ -463,10 +465,13 @@ class Square:
 
 patterns = import_pattern("../json/all_patterns.json")
 text_output = load_text_file("../res/GameMap")
-# grid = make_grid(text_output)
-grid = make_custom_grid(100, 100)
 
-click_state = False
+# COMMENT OUT ONE OF THESE \/ \/ \/
+# grid = make_grid(text_output) # To draw pattern in text file, found in res/GameMap.txt
+grid = make_custom_grid(100, 100)  # To draw in game, grid size can be changed with parameters. Larger grid, slower game
+# COMMENT OUT ONE OF THESE /\ /\ /\
+
+long_click = False
 
 while True:  # Main game loop
 
@@ -482,11 +487,11 @@ while True:  # Main game loop
             sys.exit()  # stops script
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:  # left click
-                click_state = True
+                long_click = True
                 single_click = True
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:  # left click
-                click_state = False
+                long_click = False
         if event.type == pygame.MOUSEWHEEL:
             SCROLL += - event.y
             if SCROLL < 0:
@@ -505,20 +510,17 @@ while True:  # Main game loop
             for single_square in row_of_squares:
                 single_square.die_alive_method()
 
-    pause_button_click(play_pause_rect, loc, single_click)
-    zoom_button_click(grid, zoom_in_rect, zoom_out_rect, loc, click_state)
-    move_button_click(grid, right_rect, left_rect, up_rect, down_rect, loc, click_state)
-    other_buttons(grid, loc, single_click, shuffle_rect, clear_rect, preset_rect, settings_rect)
+    # implements on screen features
+    zoom_button_click(grid, zoom_in_rect, zoom_out_rect, loc, long_click)
+    move_button_click(grid, right_rect, left_rect, up_rect, down_rect, loc, long_click)
+    other_buttons(grid, loc, single_click, play_pause_rect, shuffle_rect, clear_rect, preset_rect, settings_rect)
 
     cursor_on_square(grid, loc, single_click, buttons_area_rect)
     draw_grid(grid)
     draw_tools(CONTINUE, font_style)
     draw_dropdown(PRESET_DROPDOWN, SETTING_DROPDOWN, loc, single_click, patterns, grid)
 
-    # end here
-
     pygame.display.update()  # update display
-    mainDisplay = pygame.transform.scale(display, WINDOW_SIZE)
-    screen.blit(mainDisplay, (0, 0))
+    screen.blit(display, (0, 0))
 
     clock.tick(30)  # set frame rate
