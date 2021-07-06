@@ -21,13 +21,19 @@ UNDER_THRESH = 2
 OVER_THRESH = 3
 REPR_THRESH = 3
 
-CONST_SIZE = 12  # square size
+# CAN BE CHANGED BASED ON PC \/ \/
+GRID_SIZE = [100, 100]
+FPS = 30
+# CAN BE CHANGED BASED ON PC /\ /\
+
+SIZE = 12  # square size
 CONST_GRID_OFFSET = [0, 0]  # move entire grid by
 CONST_EDGE_IGNORE = 1  # make outer squares on grid unusable, to enclose chain reaction
 CONTINUE = False  # False means that game is paused
 PRESET_DROPDOWN = False
 SETTING_DROPDOWN = False
 SCROLL = 0  # used for preset dropdown scrolling. +ive value will move the text upwards
+
 
 # RGB color codes
 WHITE = (255, 255, 255)
@@ -43,6 +49,9 @@ pygame.init()  # initialize pygame
 font_style = pygame.font.SysFont('cambria', 15)
 font_style_med = pygame.font.SysFont('cambria', 18)
 font_style_big = pygame.font.SysFont('cambria', 25)
+
+pygame.display.set_icon(programIcon)
+pygame.display.set_caption('Game of Life')
 
 
 # load map from GameMap.txt
@@ -74,11 +83,11 @@ def make_grid(text_map):
     alive = False
     map = []
 
-    global CONST_SIZE
-    CONST_SIZE = int(WINDOW_SIZE[0] / len_x)
+    global SIZE
+    SIZE = int(WINDOW_SIZE[0] / len_x)
 
-    off_x = int((WINDOW_SIZE[0] - len_x * CONST_SIZE) / 2)
-    off_y = int((WINDOW_SIZE[1] - len_y * CONST_SIZE) / 2)
+    off_x = int((WINDOW_SIZE[0] - len_x * SIZE) / 2)
+    off_y = int((WINDOW_SIZE[1] - len_y * SIZE) / 2)
 
     global CONST_GRID_OFFSET  # how much to displace the grid
     CONST_GRID_OFFSET = [off_x, off_y]
@@ -94,7 +103,7 @@ def make_grid(text_map):
             if text_map[y][x] == '1':
                 alive = True
             temp.append(
-                Square(x * CONST_SIZE + CONST_GRID_OFFSET[0], y * CONST_SIZE + CONST_GRID_OFFSET[1], edge, alive))
+                Square(x * SIZE + CONST_GRID_OFFSET[0], y * SIZE + CONST_GRID_OFFSET[1], edge, alive))
             x += 1
             edge = False
             alive = False
@@ -106,30 +115,30 @@ def make_grid(text_map):
 # does not use text file
 # the grid rows and cols can be changed easier with parameters, len_x and len_y
 # all square will start off not alive
-def make_custom_grid(len_x, len_y):
+def make_custom_grid(grid_size):
     edge = False
     map = []
 
-    global CONST_SIZE
-    CONST_SIZE = int(WINDOW_SIZE[0] / (len_x / 1.3))
+    global SIZE
+    SIZE = int(WINDOW_SIZE[0] / (grid_size[0] / 1.3))
 
-    off_x = int((WINDOW_SIZE[0] - len_x * CONST_SIZE) / 2)
-    off_y = int((WINDOW_SIZE[1] - len_y * CONST_SIZE) / 2)
+    off_x = int((WINDOW_SIZE[0] - grid_size[0] * SIZE) / 2)
+    off_y = int((WINDOW_SIZE[1] - grid_size[1] * SIZE) / 2)
 
     global CONST_GRID_OFFSET  # how much to displace the grid
     CONST_GRID_OFFSET = [off_x, off_y]
 
-    for y in range(len_y):
+    for y in range(grid_size[1]):
         temp = []
         x = 0
-        for _ in range(len_x):
-            if y < CONST_EDGE_IGNORE or y > len_y - CONST_EDGE_IGNORE - 1:
+        for _ in range(grid_size[0]):
+            if y < CONST_EDGE_IGNORE or y > grid_size[1] - CONST_EDGE_IGNORE - 1:
                 edge = True
-            if x < CONST_EDGE_IGNORE or x > len_x - CONST_EDGE_IGNORE - 1:
+            if x < CONST_EDGE_IGNORE or x > grid_size[0] - CONST_EDGE_IGNORE - 1:
                 edge = True
             # marks outer Squares, so that a Square won't 'scan' neighbors outside of grid
             temp.append(
-                Square(x * CONST_SIZE + CONST_GRID_OFFSET[0], y * CONST_SIZE + CONST_GRID_OFFSET[1], edge, False))
+                Square(x * SIZE + CONST_GRID_OFFSET[0], y * SIZE + CONST_GRID_OFFSET[1], edge, False))
             x += 1
             edge = False
         map.append(temp)
@@ -421,9 +430,9 @@ class Square:
     def __init__(self, x, y, edge_square, alive):
         self.x = x  # x the pixel cords on the window
         self.y = y  # y the pixel cords on the window
-        self.loc = [int((x - CONST_GRID_OFFSET[0]) / CONST_SIZE), int((y - CONST_GRID_OFFSET[1]) / CONST_SIZE)]
+        self.loc = [int((x - CONST_GRID_OFFSET[0]) / SIZE), int((y - CONST_GRID_OFFSET[1]) / SIZE)]
         self.alive = alive  # is the number of 'alive' squares around the self square
-        self.rect = pygame.Rect(x, y, CONST_SIZE, CONST_SIZE)
+        self.rect = pygame.Rect(x, y, SIZE, SIZE)
         self.touch_cursor = False
         self.neighbors = 0
         self.grid_edge = edge_square  # indicates whether the square is on the edge of grid
@@ -467,8 +476,8 @@ patterns = import_pattern("../json/all_patterns.json")
 text_output = load_text_file("../res/GameMap")
 
 # COMMENT OUT ONE OF THESE \/ \/ \/
-# grid = make_grid(text_output) # To draw pattern in text file, found in res/GameMap.txt
-grid = make_custom_grid(100, 100)  # To draw in game, grid size can be changed with parameters. Larger grid, slower game
+# grid = make_grid(text_output) # To draw pattern in text file. Found in res/GameMap.txt
+grid = make_custom_grid(GRID_SIZE)  # To draw in game. Change GRID_SIZE to change grid size. Larger grid, slower game
 # COMMENT OUT ONE OF THESE /\ /\ /\
 
 long_click = False
@@ -523,4 +532,4 @@ while True:  # Main game loop
     pygame.display.update()  # update display
     screen.blit(display, (0, 0))
 
-    clock.tick(30)  # set frame rate
+    clock.tick(FPS)  # set frame rate

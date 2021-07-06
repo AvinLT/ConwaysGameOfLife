@@ -15,3 +15,5 @@ shuffle_button = pygame.image.load(r"../res/shuffle.png")
 
 preset_button = pygame.image.load(r"../res/preset.png")
 settings_button = pygame.image.load(r"../res/settings.png")
+
+programIcon = pygame.image.load('../res/icon.png')

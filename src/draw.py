@@ -25,6 +25,8 @@ preset_rect = pygame.Rect(367 + 165, 559, 32, 32)
 settings_rect = pygame.Rect(730, 559, 32, 32)
 
 
+
+
 def draw_tools(paused, font_style):
     # black rectangle at bottom, so that grid doesnt show
     pygame.draw.rect(display, (0, 0, 0), buttons_area_rect)
