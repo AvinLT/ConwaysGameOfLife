@@ -1,4 +1,4 @@
-<h1 align="center">  Conways's Game of Life </h1>
+<h1 align="center">  Conway's Game of Life </h1>
 
 <!-- buttons -->
 <p align="center">
